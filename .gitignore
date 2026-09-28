@@ -1,0 +1,19 @@
+# 기본은 전부 제외하고, 올릴 파일만 아래에서 허용한다.
+# (수집 데이터, 모델 가중치, 교안 PDF, API 키가 들어 있는 노트북이 실수로 올라가지 않도록)
+/*
+!/.gitignore
+
+!/01_test_camera.py
+!/02_check_colorspace.py
+!/03_preview.py
+!/04_scene_capture.py
+!/05_sweep_capture.py
+!/colorlab/
+
+# 교수님 제공 파일 중 수정한 것만
+!/Lecture/
+/Lecture/*
+!/Lecture/06_data_collect.py
+
+__pycache__/
+*.pyc
