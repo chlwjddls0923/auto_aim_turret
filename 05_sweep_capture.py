@@ -164,7 +164,18 @@ class RawKeyboard:
         if self.fd is None:
             return None
         r, _, _ = select.select([sys.stdin], [], [], timeout)
-        return sys.stdin.read(1) if r else None
+        if not r:
+            return None
+        ch = sys.stdin.read(1)
+        if ch == "":  # 입력이 닫힘 (터미널이 아닌 곳에서 실행). 더 읽지 않는다
+            self.fd = None
+            return None
+        return ch
+
+    def flush(self) -> None:
+        """아직 읽지 않은 키 입력을 버린다."""
+        if self.fd is not None:
+            termios.tcflush(self.fd, termios.TCIFLUSH)
 
 
 # ---------------------------------------------------------------- 카메라 / 화면
@@ -223,6 +234,11 @@ class LiveView:
 
     def take_key(self) -> str | None:
         return self.pending.pop(0) if self.pending else None
+
+    def clear_keys(self) -> None:
+        """sweep 중에 눌린 키를 버린다. 끝나자마자 다음 sweep이 저절로 시작되지 않게 한다."""
+        self.pending.clear()
+        self.kb.flush()
 
     def next_key(self) -> str | None:
         """키가 들어올 때까지 화면을 갱신하며 기다린다."""
@@ -642,9 +658,11 @@ def main() -> int:
                 if _quit or key is None or key in QUIT_KEYS:
                     break
                 if key not in LABEL_KEYS:
-                    print(f"[INFO] Key '{key}' is not used. Press 1, 2, 3 or q.")
+                    if key.isprintable():  # Ctrl+D 같은 보이지 않는 제어 문자는 조용히 무시
+                        print(f"[INFO] Key '{key}' is not used. Press 1, 2, 3 or q.")
                     continue
                 run_sweep(LABEL_KEYS[key], args, cam, servos, view, yaw_offsets, pitch_offsets)
+                view.clear_keys()  # sweep 중에 눌린 키는 무시하고, 새로 누른 키로만 다음 sweep을 시작한다
     finally:
         if servos is not None:
             # 끝: 중앙에 돌려놓은 뒤 힘을 푼다. 다음 실행 때 시작 정렬이 거의 움직이지 않는다
