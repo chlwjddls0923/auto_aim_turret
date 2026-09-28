@@ -24,7 +24,7 @@ START_PITCH = CENTER_PITCH
 FIRE_READY = 90.0
 FIRE_SHOOT = 160.0
 
-DATA_DIR = "data_yolo"
+DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "06_data_yolo")
 IMG_DIR = os.path.join(DATA_DIR, "images")
 os.makedirs(IMG_DIR, exist_ok=True)
 BURST_INTERVAL = 0.2
