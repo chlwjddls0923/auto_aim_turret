@@ -1,0 +1,49 @@
+{
+ "_comment": "target_pipeline.py 설정 — 파이용(NCNN). 경로는 이 파일 위치 기준 상대 경로이고, 절대 경로나 ~/src/pipeline/weights/... 형식도 된다. NCNN 은 export 크기가 고정이라 전체 프레임용(960x1280)과 ROI 용(384x384)을 따로 지정한다. 폴더 이름의 _ncnn_model 은 바꾸면 안 된다(ultralytics 가 이름으로 형식을 판별). 비교용 r3 는 ncnn_r3_coco 를 ncnn_r3 로 바꾸면 된다.",
+ "detector": {
+  "model": "../weights/ncnn_r3_coco/960x1280_ncnn_model",
+  "roi_model": "../weights/ncnn_r3_coco/384x384_ncnn_model",
+  "imgsz_full": [
+   960,
+   1280
+  ],
+  "roi": 384,
+  "conf": 0.25,
+  "band": [
+   352,
+   672
+  ],
+  "band_penalty": 0.5,
+  "device": "cpu"
+ },
+ "color": {
+  "_comment": "refs = 색칠 후 P0 촬영분으로 tools/color_separation.py 가 만든 color_refs.json. 파일이 없거나 safety_ratio < min_safety_ratio 이면 전부 unknown → hold",
+  "refs": "color_refs.json",
+  "min_safety_ratio": 3.0
+ },
+ "aim": {
+  "frame_w": 1280,
+  "yaw_calib": {
+   "_comment": "임시값. yaw_deg = sign * sum(coef[i] * xn^i), xn = (cx-640)/640. b2 실측 d(cx)/d(yaw_cmd) = +10.3 px/deg (세션별 9.0~11.6) → 반폭 640px ≈ 64deg. sign=-1 은 '카메라 서보 yaw_cmd 를 얼마나 바꿔야 타겟이 화면 중앙에 오는가' 기준(yaw_cmd 가 커지면 타겟이 화면 오른쪽으로 감). 발사부 축·방향 규약은 실기 확인 전까지 미확정",
+   "type": "poly",
+   "coef": [
+    0,
+    64
+   ],
+   "sign": -1
+  },
+  "pitch_table": null,
+  "_pitch_table_example": {
+   "h_px": [
+    29.5,
+    33.8,
+    39.4
+   ],
+   "pitch_deg": [
+    0.0,
+    0.0,
+    0.0
+   ]
+  }
+ }
+}
