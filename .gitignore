@@ -15,5 +15,10 @@
 /Lecture/*
 !/Lecture/06_data_collect.py
 
+# 검출·색 판정 파이프라인 (DGX에서 받은 묶음 중 코드만. 가중치·휠은 제외)
+!/pipeline/
+/pipeline/*
+!/pipeline/tools/
+
 __pycache__/
 *.pyc
