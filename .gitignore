@@ -36,6 +36,7 @@
 # 데이터셋·라벨·handover 묶음·로그·캐시는 올리지 않는다.
 # =====================================================================
 /YOLO/*
+!/YOLO/README.md
 !/YOLO/README_FIRST.md
 !/YOLO/RESUME.md
 !/YOLO/TRAINING_DESIGN.md
