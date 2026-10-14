@@ -1,0 +1,25 @@
+{
+ "refs": {
+  "enemy": [
+   22.42336366394227,
+   6.730324095711047,
+   -5.057390449093965
+  ],
+  "friend": [
+   27.45876470000734,
+   -1.4246296859594232,
+   7.352253453658343
+  ]
+ },
+ "min_px": 20,
+ "margin": 22.497443724880398,
+ "sat_min": 60,
+ "top_frac": null,
+ "ball_frac": 0.45,
+ "safety_ratio": 1.5078025192551545,
+ "source": [
+  "/home/pa8/src/05_dataset/enemy",
+  "/home/pa8/src/05_dataset/friend"
+ ],
+ "jpeg_input": true
+}

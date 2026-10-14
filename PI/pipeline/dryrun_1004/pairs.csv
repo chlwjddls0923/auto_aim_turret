@@ -1,0 +1,2 @@
+pair,sep_ab,spread,spread_kind,safety,safety_worst,worst_cond,C_a,C_b,npx_a,npx_b,bg_ratio,drift,passed,fails,jpeg_input
+enemy + friend,14.84034333360173,8.761518888942579,samples,1.693809432098685,1.7876064078928913,evening/2.1/right,9.51827913669065,9.257424060150376,47.0,91.0,,23.98864144597879,False,"safety_worst,C*,bg_untested",True
