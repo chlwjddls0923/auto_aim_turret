@@ -8,7 +8,8 @@
   결과 파일은 외부로 보내 분석하므로, meta.json에 모든 조건과 컬럼 정의를 기록한다.
   이렇게 하면 파일만 보고도 내용을 이해할 수 있다.
 
-화면 없이(SSH로) 동작한다. 해상도(기본 640x480)와 채널 처리는 03_preview.py와 같다.
+화면 없이(SSH로) 동작한다. 해상도(기본 1280x960)와 채널 처리는 03_preview.py와 같다.
+결과 폴더에 다른 해상도로 찍은 촬영 폴더가 있으면 섞이지 않도록 멈추고 폴더 이름을 바꾸라고 안내한다.
 
 예시:
   python3 04_scene_capture.py --self-test                          # 첫 실행: PNG 색 순서 확인
@@ -39,7 +40,8 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from colorlab import ROOT
-from colorlab.camera import ColorCamera, DEFAULT_CONFIG_PATH
+from colorlab.camera import ColorCamera, DEFAULT_CONFIG_PATH, DEFAULT_MAIN_SIZE
+from colorlab.datacheck import print_old_data_stop, scene_mismatches
 from colorlab.color import CLIP_THR, DARK_THR, clip_dark_masks, hue_name, rgb_to_hsv360, rgb_to_lab
 from colorlab.store import _safe as safe_name
 
@@ -452,8 +454,8 @@ def main() -> int:
     ap.add_argument("--grid-step", type=int, default=4, help="Grid step for pixels.csv (px)")
     ap.add_argument("--sat-min", type=float, default=0.25, help="Minimum saturation S for the Hue histogram (0~1)")
     ap.add_argument("--val-min", type=float, default=0.15, help="Minimum value V for the Hue histogram (0~1)")
-    ap.add_argument("--width", type=int, default=640)
-    ap.add_argument("--height", type=int, default=480)
+    ap.add_argument("--width", type=int, default=DEFAULT_MAIN_SIZE[0])
+    ap.add_argument("--height", type=int, default=DEFAULT_MAIN_SIZE[1])
     ap.add_argument("--config", type=Path, default=DEFAULT_CONFIG_PATH)
     ap.add_argument("--allow-auto", action="store_true", help="Allow shooting in auto mode when there is no config (not recommended)")
     ap.add_argument("--force", action="store_true", help=f"Continue even if the expected pixels.csv size is over {SIZE_LIMIT_BYTES//1024//1024}MB")
@@ -497,6 +499,12 @@ def main() -> int:
 
     label_rec = args.label + ("[AUTO]" if use_auto else "")
 
+    # Stop if the output folder already holds runs taken at another resolution
+    old = scene_mismatches(OUT_ROOT, (args.width, args.height))
+    if old:
+        print_old_data_stop(OUT_ROOT, old, (args.width, args.height))
+        return 1
+
     # ---- 카메라 ------------------------------------------------------
     cam = ColorCamera(main_size=(args.width, args.height), channel_swap=not args.no_swap)
     try:
@@ -518,6 +526,9 @@ def main() -> int:
             for w in cam.load_warnings:
                 print(f"  [warning] {w}")
                 run_warnings.append(f"config mismatch: {w}")
+            hint = cam.resolution_hint()
+            if hint:
+                print(f"  [warning] {hint}")
             if not s.converged:
                 run_warnings.append("The config values were locked before they converged. We recommend locking again with f in 03_preview.py.")
             if s.analogue_gain >= HIGH_GAIN_WARN:
