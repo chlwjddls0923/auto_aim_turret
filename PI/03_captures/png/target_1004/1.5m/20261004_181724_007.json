@@ -1,0 +1,53 @@
+{
+ "file": "20261004_181724_007.png",
+ "saved_at": "2026-10-04 18:17:24",
+ "locked": {
+  "colour_gains": [
+   1.197319507598877,
+   1.6935337781906128
+  ],
+  "exposure_time": 9967,
+  "analogue_gain": 1.75,
+  "lens_position": null,
+  "lux": 1948.448974609375,
+  "colour_temperature": 3433,
+  "locked_at": "2026-10-04 17:33:19",
+  "converged": true,
+  "settle_seconds": 3.52,
+  "note": "manual adjust",
+  "auto_exposure": true,
+  "exposure_value": 1.0
+ },
+ "actual": {
+  "ExposureTime": 29989,
+  "AnalogueGain": 3.4375,
+  "DigitalGain": 1.0159006118774414,
+  "ColourGains": [
+   1.197319507598877,
+   1.6935337781906128
+  ],
+  "Lux": 858.7734375,
+  "ColourTemperature": 3471
+ },
+ "camera": {
+  "camera_model": "ov5647",
+  "main_size": [
+   1280,
+   960
+  ],
+  "main_format": "RGB888",
+  "sensor_output_size": [
+   1296,
+   972
+  ],
+  "sensor_bit_depth": 10,
+  "scaler_crop": [
+   0,
+   0,
+   2592,
+   1944
+  ],
+  "channel_swap": true,
+  "has_af": false
+ }
+}
