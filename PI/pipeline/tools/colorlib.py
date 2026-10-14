@@ -63,9 +63,10 @@ def select_target_pixels(bgr_box, sat_min=60, top_frac=None):
         thr = max(sat_min, float(np.percentile(sat, 100 * (1 - top_frac))))
     return sat >= thr
 
-def patch_stats(frame_bgr, box_xyxy, sat_min=60, top_frac=None, ball_frac=None):
+def patch_stats(frame_bgr, box_xyxy, sat_min=60, top_frac=None, ball_frac=None, gains=None):
     """원본 프레임 + 원본 좌표 박스 -> 색 통계.
     ball_frac: 지정 시 박스 상단 비율만 사용 (색칠 전 데이터: 공만 색이 있으므로 0.45 권장). 색칠 후에는 None.
+    gains    : 프레임 내 WB 배율 (RefPatches.read()['gains']). 지정 시 crop 에 곱한 뒤 픽셀을 고르고 색을 잰다.
     반환 dict(n_px, lab(평균 L,a,b), hue_deg, S, V, rgb, box_px)"""
     H, W = frame_bgr.shape[:2]
     x1, y1, x2, y2 = [int(round(v)) for v in box_xyxy]
@@ -74,7 +75,7 @@ def patch_stats(frame_bgr, box_xyxy, sat_min=60, top_frac=None, ball_frac=None):
         return dict(n_px=0, lab=None, hue_deg=None, S=None, V=None, rgb=None, box_px=0)
     if ball_frac:
         y2 = y1 + max(3, int((y2 - y1) * ball_frac))
-    crop = frame_bgr[y1:y2, x1:x2]
+    crop = apply_gains(frame_bgr[y1:y2, x1:x2], gains)
     mask = select_target_pixels(crop, sat_min=sat_min, top_frac=top_frac)
     n = int(mask.sum())
     if n == 0:
@@ -117,3 +118,125 @@ def separation_report(lab_by_class):
         out['suggested_margin'] = float(max(out['spread_p95']['enemy'], out['spread_p95']['friend']))
         out['pass'] = out['safety_ratio'] >= 3.0
     return out
+
+# ---------- 상대 판정 (10/4 재설계: 프레임 안 기준색) ----------
+# 총 본체(화면 우측에 항상 보이는 부분)에 아군 색지·적군 색지·흰 종이 세 조각을 붙여 두고,
+# 매 프레임 그 조각들의 색을 읽어 "타겟이 이 프레임의 아군 조각과 적군 조각 중 어느 쪽에 가까운가"로 판정한다.
+# 시간대가 바뀌어 화면 전체 색이 밀려도 기준과 타겟이 같이 밀리므로 판정이 유지된다.
+# 거리는 a*b* 평면에서만 잰다 (L* 제외 → 밝기 변화에 무관).
+
+REF_NAMES = ("friend", "enemy", "white")
+
+
+def ab_distance(lab1, lab2):
+    """a*b* 평면의 유클리드 거리 (L* 는 쓰지 않는다)."""
+    lab1 = np.asarray(lab1, float); lab2 = np.asarray(lab2, float)
+    return float(np.hypot(lab1[..., 1] - lab2[..., 1], lab1[..., 2] - lab2[..., 2]))
+
+
+def white_gains(white_bgr_mean):
+    """흰 조각의 평균 BGR 이 중성(B=G=R)이 되도록 채널 배율 (gB, gG, gR) 을 구한다. G 기준이라 gG = 1.
+    카메라 설정은 건드리지 않고 계산에만 쓴다."""
+    b, g, r = [max(float(v), 1e-6) for v in white_bgr_mean]
+    return (g / b, 1.0, g / r)
+
+
+def apply_gains(bgr_u8, gains):
+    """BGR uint8 픽셀에 채널 배율을 곱한다 (0~255 로 자른다). gains=None 이면 그대로 돌려준다."""
+    if gains is None:
+        return bgr_u8
+    out = np.asarray(bgr_u8, np.float32) * np.asarray(gains, np.float32)
+    return np.clip(np.rint(out), 0, 255).astype(np.uint8)
+
+
+class RefPatches:
+    """프레임 안 고정 위치의 기준 조각 세 개(friend / enemy / white)를 매 프레임 읽는다.
+
+    rois    : {'friend': [x, y, w, h], 'enemy': [...], 'white': [...]}  원본 프레임(1280x960) 픽셀 좌표.
+              총 본체는 카메라에 고정되어 있어 좌표가 바뀌지 않는다.
+    판정    : 조각 픽셀 중 어느 채널이든 sat_thr(250) 이상인 비율이 sat_frac_max(1%) 를 넘으면 'saturated',
+              V 평균이 v_min(0.15) 보다 낮으면 'dark'. 색 조각은 고채도 픽셀이 min_px 보다 적으면 'few_px'.
+              하나라도 정상이 아니면 그 프레임의 기준은 불량 → 판정 보류(또는 절대값 폴백).
+    WB      : wb_in_frame 이면 흰 조각으로 배율을 구해 기준 조각과 타겟에 똑같이 곱한다."""
+
+    def __init__(self, rois, sat_thr=250, sat_frac_max=0.01, v_min=0.15, sat_min=60, min_px=20, wb_in_frame=True):
+        missing = [k for k in REF_NAMES if not rois or k not in rois or rois[k] is None]
+        if missing:
+            raise ValueError(f"ref_patches 에 {missing} 좌표가 없다")
+        self.rois = {k: tuple(int(v) for v in rois[k]) for k in REF_NAMES}
+        self.sat_thr, self.sat_frac_max, self.v_min = sat_thr, sat_frac_max, v_min
+        self.sat_min, self.min_px, self.wb_in_frame = sat_min, min_px, wb_in_frame
+
+    def _crop(self, frame_bgr, name):
+        x, y, w, h = self.rois[name]
+        H, W = frame_bgr.shape[:2]
+        x1, y1, x2, y2 = max(0, x), max(0, y), min(W, x + w), min(H, y + h)
+        return frame_bgr[y1:y2, x1:x2] if x2 > x1 and y2 > y1 else frame_bgr[0:0, 0:0]
+
+    def _status(self, crop):
+        if crop.size == 0:
+            return "missing"
+        px = crop.reshape(-1, 3)
+        if float((px >= self.sat_thr).any(1).mean()) > self.sat_frac_max:
+            return "saturated"
+        if float(px.max(1).mean()) / 255.0 < self.v_min:     # HSV 의 V = max(R,G,B)
+            return "dark"
+        return "ok"
+
+    def read(self, frame_bgr):
+        """반환 dict:
+          ok       : 세 조각이 모두 정상이면 True
+          status   : {'friend': 'ok'|'saturated'|'dark'|'few_px'|'missing', 'enemy': ..., 'white': ...}
+          gains    : 프레임 내 WB 배율 (wb_in_frame 이 꺼져 있거나 흰 조각이 불량이면 None)
+          lab      : {'friend': [L,a,b], 'enemy': [L,a,b], 'white': [L,a,b]} (불량 조각은 None)
+          n_px     : 색 조각의 고채도 픽셀 수"""
+        crops = {k: self._crop(frame_bgr, k) for k in REF_NAMES}
+        status = {k: self._status(c) for k, c in crops.items()}
+        gains = None
+        if status["white"] == "ok" and self.wb_in_frame:
+            gains = white_gains(crops["white"].reshape(-1, 3).astype(float).mean(0))
+        lab, n_px = {}, {}
+        for k, c in crops.items():
+            if status[k] != "ok":
+                lab[k] = None; n_px[k] = 0
+                continue
+            c = apply_gains(c, gains)
+            if k == "white":
+                px = c.reshape(-1, 3)
+            else:
+                px = c[select_target_pixels(c, sat_min=self.sat_min)]
+                if len(px) < self.min_px:
+                    status[k] = "few_px"
+            n_px[k] = int(len(px))
+            lab[k] = bgr_to_lab(px).mean(0) if len(px) and status[k] == "ok" else None
+        return dict(ok=all(v == "ok" for v in status.values()), status=status, gains=gains, lab=lab, n_px=n_px)
+
+
+def ref_problem(reading):
+    """불량 기준 조각을 reason 문자열로 (예: 'ref_white_saturated'). 정상이면 None."""
+    bad = [f"ref_{k}_{v}" for k, v in reading["status"].items() if v != "ok"]
+    return ",".join(bad) if bad else None
+
+
+def classify_relative(target_lab, ref_friend_lab, ref_enemy_lab, margin=5.0):
+    """a*b* 평면에서 타겟이 이 프레임의 아군 조각과 적군 조각 중 어느 쪽에 가까운지 판정한다.
+    |d_friend - d_enemy| < margin 이면 unknown('ambiguous').
+    반환 dict(side, d_friend, d_enemy, reason)."""
+    d_f = ab_distance(target_lab, ref_friend_lab)
+    d_e = ab_distance(target_lab, ref_enemy_lab)
+    if abs(d_f - d_e) < margin:
+        return dict(side="unknown", d_friend=d_f, d_enemy=d_e, reason="ambiguous")
+    return dict(side="friend" if d_f < d_e else "enemy", d_friend=d_f, d_enemy=d_e, reason="ok")
+
+
+# ---------- 폴백: a* 부호 판정 (10/4, 적군 마젠타 / 아군 초록 전용) ----------
+def classify_a_sign(target_lab, thr=10.0):
+    """mode='a_sign'. 기준값 없이 a* 부호만 본다: a* > +thr → enemy(마젠타), a* < −thr → friend(초록), 그 사이 → unknown.
+    적군 a*>0, 아군 a*<0 인 색 쌍에서만 맞는 규칙이다 (색을 바꾸면 다시 확인).
+    반환 dict(side, a_star, reason)  reason: 'ok' | 'ambiguous'"""
+    a = float(np.asarray(target_lab, float)[1])
+    if a > thr:
+        return dict(side="enemy", a_star=a, reason="ok")
+    if a < -thr:
+        return dict(side="friend", a_star=a, reason="ok")
+    return dict(side="unknown", a_star=a, reason="ambiguous")
