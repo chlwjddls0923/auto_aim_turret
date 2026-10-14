@@ -17,20 +17,48 @@
   "device": "cpu"
  },
  "color": {
-  "_comment": "refs = 색칠 후 P0 촬영분으로 tools/color_separation.py 가 만든 color_refs.json. 파일이 없거나 safety_ratio < min_safety_ratio 이면 전부 unknown → hold",
+  "_comment": "10/4 재설계. mode=relative: 총 본체에 붙인 friend/enemy/white 기준 조각(ref_patches, 원본 1280x960 픽셀 [x, y, w, h])을 매 프레임 읽어 a*b* 거리로 상대 판정한다. 조각이 불량(포화·어두움·픽셀 부족)인 프레임은 refs(color_refs.json, 절대값)로 폴백하고, 그것도 없거나 안전비 미달·jpeg_input 이면 unknown → hold. ref_patches 가 null 이면 상대 판정을 하지 않는다(지금 상태). margin_ab 는 임시값 — 총 본체 조각과 2 m 타겟의 같은 색지 a*b* 차이(§3 측정)를 재서 정한다.",
+  "mode": "relative",
+  "ref_patches": {
+   "friend": null,
+   "enemy": null,
+   "white": null
+  },
+  "margin_ab": 5.0,
+  "min_px": 20,
+  "sat_min": 60,
+  "ref_sat_thr": 250,
+  "ref_sat_frac": 0.01,
+  "ref_v_min": 0.15,
+  "wb_in_frame": true,
   "refs": "color_refs.json",
-  "min_safety_ratio": 3.0
+  "min_safety_ratio": 3.0,
+  "a_sign_thr": 10.0,
+  "_comment_modes": "mode: relative(기준 조각, 없으면 절대값) | absolute(color_refs.json 만) | a_sign(폴백: a* > +a_sign_thr 적군, < −a_sign_thr 아군, 사이 unknown — 적군 마젠타/아군 초록 전용, 안전비 게이트 없음). build_color_refs.py 가 만든 color_refs.json 은 metric=ab 라 절대값 판정도 a*b* 거리로 한다. ref_patches 좌표를 넣을 때 상대 판정을 아직 안 쓰려면 mode 를 absolute 로 바꾼다."
  },
  "aim": {
+  "_comment": "조준점 = aim_table(07_aim_calib.py 가 실사격으로 만든 calib/aim_table.json, 박스 높이 h → (cx, cy)) 이 있으면 그 값, 없으면 화면 중앙(W/2, H/2). 파일이 아직 없으면 Aimer 가 경고만 내고 화면 중앙을 쓴다. yaw_calib/pitch_calib 은 '타겟을 조준점까지 옮기는 서보 보정각' (poly: sign·Σcoef[i]·n^i, n = (px − 조준점)/반폭). 카메라 위치가 바뀌거나 받침·막대를 색칠하면 aim_table 을 다시 만든다.",
   "frame_w": 1280,
+  "frame_h": 960,
+  "aim_table": "../calib/aim_table.json",
   "yaw_calib": {
-   "_comment": "임시값. yaw_deg = sign * sum(coef[i] * xn^i), xn = (cx-640)/640. b2 실측 d(cx)/d(yaw_cmd) = +10.3 px/deg (세션별 9.0~11.6) → 반폭 640px ≈ 64deg. sign=-1 은 '카메라 서보 yaw_cmd 를 얼마나 바꿔야 타겟이 화면 중앙에 오는가' 기준(yaw_cmd 가 커지면 타겟이 화면 오른쪽으로 감). 발사부 축·방향 규약은 실기 확인 전까지 미확정",
+   "_comment": "임시값. yaw_deg = sign * sum(coef[i] * xn^i), xn = (cx − 조준점 cx)/640 (조준점 = aim_table 값, 없으면 640). b2 실측 d(cx)/d(yaw_cmd) = +10.3 px/deg (세션별 9.0~11.6) → 반폭 640px ≈ 64deg. sign=-1 은 '카메라 서보 yaw_cmd 를 얼마나 바꿔야 타겟이 조준점에 오는가' 기준(yaw_cmd 가 커지면 타겟이 화면 오른쪽으로 감). 발사부 축·방향 규약은 실기 확인 전까지 미확정",
    "type": "poly",
    "coef": [
     0,
     64
    ],
    "sign": -1
+  },
+  "pitch_calib": null,
+  "_pitch_calib_example": {
+   "_comment": "같은 렌즈이므로 크기는 yaw 와 같은 약 10.3 px/deg → 반높이 480 px ≈ 46.6 deg. 부호(pitch_cmd 가 커질 때 타겟이 화면 위로 가는지 아래로 가는지)는 실기에서 확인한 뒤 입력. 입력하면 pitch_table 보다 우선한다",
+   "type": "poly",
+   "coef": [
+    0,
+    46.6
+   ],
+   "sign": 1
   },
   "pitch_table": null,
   "_pitch_table_example": {
@@ -45,5 +73,14 @@
     0.0
    ]
   }
+ },
+ "exposure_loop": {
+  "_comment": "노출 소프트 루프 (기본 off). 켜면 실행기가 자동 노출을 끄고, 흰 기준 조각 L* 가 target_L 이 되도록 ExposureTime 을 한 번에 최대 max_step(15%)씩 바꾼다. 색 게인(화이트밸런스)은 그대로.",
+  "enabled": false,
+  "target_L": 75.0,
+  "deadband": 3.0,
+  "max_step": 0.15,
+  "min_us": 200,
+  "max_us": 33000
  }
 }
