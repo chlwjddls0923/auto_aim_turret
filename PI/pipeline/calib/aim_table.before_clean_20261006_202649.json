@@ -1,0 +1,37 @@
+{
+ "_comment": "07_aim_calib.py가 만든 거리별 조준점 표. 검출 박스 높이 h_px -> 조준점 (cx, cy)를 선형 보간한다(범위 밖은 끝값). '박스 높이가 h이면 타겟을 화면의 (cx, cy)에 두면 맞는다'. 카메라 위치가 바뀌거나 받침·막대를 색칠하면 무효 -> 다시 측정.",
+ "created_at": "2026-10-06T20:10:17",
+ "source_csv": "/home/pa8/src/pipeline/calib/aim_points.csv",
+ "frame_size": [
+  1280,
+  960
+ ],
+ "h_coef": 59.1,
+ "n_points": 6,
+ "h_px": [
+  38.05
+ ],
+ "cx": [
+  594.4
+ ],
+ "cy": [
+  502.3
+ ],
+ "per_distance": [
+  {
+   "distance_m": 1.5,
+   "n": 6,
+   "n_detect": 2,
+   "n_click": 4,
+   "cx": 594.42,
+   "cy": 502.3,
+   "cx_std": 116.95,
+   "cy_std": 173.02,
+   "h": 38.05,
+   "h_std": 0.35,
+   "h_expected": 39.4,
+   "h_src": "measured",
+   "warn": true
+  }
+ ]
+}
