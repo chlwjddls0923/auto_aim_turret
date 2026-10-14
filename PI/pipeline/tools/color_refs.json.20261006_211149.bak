@@ -1,0 +1,80 @@
+{
+ "refs": {
+  "friend": [
+   47.188,
+   -9.722,
+   -2.93
+  ],
+  "enemy": [
+   45.906,
+   46.621,
+   -18.964
+  ]
+ },
+ "metric": "ab",
+ "margin": 15.81,
+ "margin_basis": "3*rms",
+ "min_px": 412,
+ "sat_min": 60,
+ "top_frac": null,
+ "ball_frac": null,
+ "safety_ratio": 14.795,
+ "sep_ab": 58.58,
+ "drift_rms_ab": {
+  "friend": 5.27,
+  "enemy": 2.649
+ },
+ "n_images": 3,
+ "jpeg_input": false,
+ "conditions": {
+  "distances_m": [
+   1.5,
+   1.75
+  ],
+  "layouts": {
+   "F-left": 1,
+   "F-right": 2
+  },
+  "ev": [
+   1.25
+  ],
+  "colour_gains": [
+   [
+    1.132,
+    1.841
+   ]
+  ],
+  "exposure_us": [
+   23012,
+   24052
+  ],
+  "analogue_gain": [
+   2.0,
+   2.0
+  ],
+  "lux": [
+   1667.6,
+   1717.9
+  ],
+  "colour_temp": [
+   3180,
+   3180
+  ]
+ },
+ "colors": {
+  "enemy": "B04 magenta #FF66CC",
+  "friend": "B06 green #4FD95A"
+ },
+ "source": [
+  "20261006_162158_183.png",
+  "20261006_162225_702.png",
+  "20261006_162243_296.png"
+ ],
+ "skipped": [
+  "20261006_162134_738.png: both boxes have the same a* sign (a* = +0.5, +43.8)",
+  "20261006_162308_891.png: 1 boxes (need 2)",
+  "20261006_162328_254.png: 1 boxes (need 2)"
+ ],
+ "created_at": "2026-10-06 16:47:57",
+ "created_by": "build_color_refs.py"
+}
