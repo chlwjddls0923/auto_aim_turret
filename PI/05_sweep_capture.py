@@ -12,7 +12,8 @@ VNC 데스크톱에서 실행한다. '05 Sweep Capture' 창에 카메라 화면�
 사진이 저장되는 순간 화면 테두리가 빨갛게 깜빡인다.
 
 servo 위치:
-    시작할 때 항상 중앙(yaw 50, pitch 90)으로 정렬한 뒤 메뉴를 띄운다.
+    시작할 때 항상 중앙으로 정렬한 뒤 메뉴를 띄운다. 중앙값은 03_config/servo_center.json에서
+    읽는다 (colorlab/servo.py, 파일이 없으면 yaw 95, pitch 90).
     끝날 때(q, Ctrl+C, 오류 모두) 중앙으로 돌려놓은 뒤 힘을 푼다. 그래서 다음 실행 때
     시작 정렬이 거의 움직이지 않는다. 재부팅/전원 차단으로 끝난 경우에는 다음 시작 때
     처진 위치에서 중앙으로 한 번 크게 움직인다.
@@ -29,6 +30,11 @@ servo 위치:
 카메라 설정:
     03_preview.py에서 f로 저장한 03_config/camera_config.json을 03/04와 같은 방식
     (colorlab)으로 불러와 AWB/AE를 고정한다. 해상도/화각이 저장할 때와 다르면 경고한다.
+
+해상도와 방향:
+    기본 1280x960, 회전 없음(카메라가 보는 그대로 저장). 저장 폴더에 다른 해상도나
+    회전으로 찍은 데이터가 이미 있으면 섞이지 않도록 멈추고, 폴더 이름을 바꾸라고 안내한다
+    (자동으로 옮기지는 않는다).
 
 저장 (라벨별 폴더에 계속 이어서 저장):
     05_dataset/<라벨>/
@@ -80,13 +86,18 @@ import numpy as np  # noqa: E402
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
-from colorlab.camera import ColorCamera, DEFAULT_CONFIG_PATH  # noqa: E402
+from colorlab.camera import ColorCamera, DEFAULT_CONFIG_PATH, DEFAULT_MAIN_SIZE  # noqa: E402
+from colorlab.datacheck import dataset_mismatches, print_old_data_stop  # noqa: E402
+from colorlab.dataset import CSV_COLUMNS  # noqa: E402
+from colorlab.servo import SERVO_CENTER_PATH, load_center  # noqa: E402
 
 # ======================================================================
 # [TODO 2026-09-30 직접 확인 후 수정] 스윕 범위
 #
-#   카메라를 90도 돌려 달아서 가로 화각이 약 41도(중심에서 좌우 약 20도)다.
-#   기본 ±20도로 돌면 가운데 둔 표지판이 스윕 양 끝에서 화면 밖으로 나갈 수 있다.
+#   사진을 카메라가 보는 그대로(1280x960, 회전 없음) 저장하므로 가로 화각은 사진의 긴 쪽이다.
+#   실제 화각은 06_calibrate_lens.py로 잰다 (가로 화각을 출력한다). 화각의 절반이
+#   스윕 범위(기본 ±20도)보다 충분히 크지 않으면, 가운데 둔 표지판이 스윕 양 끝에서
+#   화면 밖으로 나갈 수 있다 (표지판에도 폭이 있고 항상 정확히 가운데 있지도 않다).
 #
 #   확인 방법 (VNC 터미널, 카메라 연결 후):
 #     python3 05_sweep_capture.py --out /tmp/range_test --pitch-offsets 0
@@ -108,8 +119,9 @@ YAW_RANGE_CONFIRMED = False  # 확인 후 True
 YAW_PIN = 18
 PITCH_PIN = 13
 
-CENTER_YAW = 50.0
-CENTER_PITCH = 90.0
+# 서보 중앙값은 03_config/servo_center.json 한 곳에서 읽는다 (없으면 yaw 95, pitch 90).
+# 값을 바꿀 때는 98_servo_center.py로 찾아서 저장한다.
+CENTER_YAW, CENTER_PITCH = load_center()
 
 SERVO_MIN_US = 500.0
 SERVO_MAX_US = 2500.0
@@ -125,11 +137,10 @@ LABEL_KEYS = {"1": "enemy", "2": "friend", "3": "both"}
 LABEL_DESC = {"enemy": "enemy only", "friend": "friend only", "both": "friend + enemy"}
 QUIT_KEYS = ("q", "Q", "\x1b")  # q 또는 ESC
 
+# labels.csv 열 구성은 colorlab/dataset.py의 CSV_COLUMNS 한 곳에서 정한다 (05_manual과 공유).
 # 학습에 직접 쓰는 것은 filename, label, session(학습/검증을 sweep 단위로 나눌 때)뿐이다.
-# 나머지는 불량 사진을 걸러내거나 조건별로 분석할 때 쓴다 (각도는 sweep 끝에서 표지판이 화면 밖으로
-# 나간 사진을 찾을 때 쓴다).
-CSV_COLUMNS = ["filename", "label", "session", "note", "yaw_cmd", "pitch_cmd", "timestamp",
-               "clip_ratio", "dark_ratio", "mean_bgr", "config_locked"]
+# 나머지는 불량 사진을 걸러내거나 조건별로 분석할 때 쓴다.
+CSV_MODE = "sweep"  # labels.csv의 mode 열에 기록되는 값
 
 _stop_sweep = False  # 지금 sweep만 멈춤 (q)
 _quit = False  # 프로그램 종료 (Ctrl+C)
@@ -506,7 +517,7 @@ def run_sweep(label: str, args, cam: ColorCamera, servos: Servos, view: LiveView
                     clip, dark, mean = quality(img)
                     name = f"{label}_{idx:06d}.jpg"
                     store.save_image(name, img, args.jpeg_quality)
-                    writer.writerow([name, label, session, args.note,
+                    writer.writerow([name, label, session, CSV_MODE, args.note,
                                      f"{yaw:.1f}", f"{pitch:.1f}",
                                      datetime.now().isoformat(timespec="seconds"),
                                      f"{clip:.4f}", f"{dark:.4f}", f"{mean:.1f}", locked])
@@ -578,10 +589,10 @@ def main() -> int:
 
     ap.add_argument("--shots", type=int, default=1, help="Number of photos to save at each position")
     ap.add_argument("--settle", type=float, default=0.4, help="Time to wait after a move for the shaking to stop (sec)")
-    ap.add_argument("--width", type=int, default=640)
-    ap.add_argument("--height", type=int, default=480)
-    ap.add_argument("--rotate", type=int, default=90, choices=[0, 90, 180, 270],
-                    help="Rotation before saving. Default is 90, the same as the old collection code")
+    ap.add_argument("--width", type=int, default=DEFAULT_MAIN_SIZE[0])
+    ap.add_argument("--height", type=int, default=DEFAULT_MAIN_SIZE[1])
+    ap.add_argument("--rotate", type=int, default=0, choices=[0, 90, 180, 270],
+                    help="Rotation before saving. Default 0: all data is saved as the camera sees it")
     ap.add_argument("--no-swap", action="store_true", help="Do not swap the R/B channels")
     ap.add_argument("--no-servo", action="store_true", help="Test the camera only, do not move the servos")
     ap.add_argument("--jpeg-quality", type=int, default=95)
@@ -616,12 +627,22 @@ def main() -> int:
         print("       Press f in 03_preview.py to save fixed values, or add --allow-auto.")
         return 1
 
+    # Stop if the output folder already holds photos taken with other settings
+    old = dataset_mismatches(args.out, (args.width, args.height), args.rotate)
+    if old:
+        print_old_data_stop(args.out, old, (args.width, args.height), f", rotate {args.rotate}")
+        return 1
+
     signal.signal(signal.SIGINT, _on_sigint)
 
     # --- 카메라: 03/04와 같은 방식으로 config를 불러와 고정 ---------------
     print("[START] Opening the camera...")
     cam = ColorCamera(main_size=(args.width, args.height), channel_swap=not args.no_swap)
-    cam.start()
+    try:
+        cam.start()
+    except Exception as e:
+        print(f"[ERROR] Could not open the camera: {e}", file=sys.stderr)
+        return 1
     servos = None
     view = None
     try:
@@ -632,9 +653,12 @@ def main() -> int:
                 print("    " + line)
             for w in cam.load_warnings:
                 print(f"[WARN] {w}")
-            if cam.load_warnings:
+            hint = cam.resolution_hint()
+            if hint:
+                print(f"[WARN] {hint}")
+            elif cam.load_warnings:
                 print("       The camera setup is different from when the config was saved. "
-                      "Run with the same --width/--height, or lock again in 03_preview.py.")
+                      "Lock again in 03_preview.py.")
         else:
             print("[WARN] No config file, so photos are taken in auto mode. Colors may not stay the same.")
 
@@ -648,7 +672,8 @@ def main() -> int:
 
             # 시작: 어디에 있든 항상 중앙으로 정렬한 뒤 메뉴를 띄운다
             if servos.enabled:
-                print(f"[CENTER] Moving to the center (yaw {args.center_yaw}, pitch {args.center_pitch})...")
+                src = SERVO_CENTER_PATH.name if SERVO_CENTER_PATH.exists() else "default"
+                print(f"[CENTER] Moving to the center (yaw {args.center_yaw}, pitch {args.center_pitch}, from {src})...")
                 view.lines = ["CENTERING...", "servos move to the center"]
                 servos.center(args.center_yaw, args.center_pitch)
 
