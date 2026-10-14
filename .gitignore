@@ -31,6 +31,18 @@
 !/PI/pipeline/PI_SETUP.md
 !/PI/pipeline/RESUME.md
 
+# 실제로 쓰는 검출 모델(r4 NCNN)과 보정·색 측정 기록 (보고서 근거 자료)
+!/PI/pipeline/weights/
+/PI/pipeline/weights/*
+!/PI/pipeline/weights/ncnn_r4/
+!/PI/pipeline/calib/
+!/PI/pipeline/swatch_1004/
+!/PI/pipeline/color_check_1004/
+!/PI/pipeline/color_check_1006/
+!/PI/pipeline/dryrun_1004/
+!/PI/03_captures/
+!/PI/04_scene_captures/
+
 # =====================================================================
 # YOLO — 외부(DGX/GB10)에서 학습
 # 데이터셋·라벨·handover 묶음·로그·캐시는 올리지 않는다.
@@ -86,3 +98,20 @@
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
+
+# =====================================================================
+# 위 제외의 예외: 보관할 모델과 기록은 이미지·가중치까지 올린다
+# =====================================================================
+!/YOLO/weights/r4/*.pt
+!/YOLO/weights/ncnn_r4/**
+!/YOLO/pi_bundle_r4/ncnn_r4/**
+!/PI/pipeline/weights/ncnn_r4/**
+!/PI/pipeline/calib/**
+!/PI/pipeline/swatch_1004/**
+!/PI/pipeline/color_check_1004/**
+!/PI/pipeline/color_check_1006/**
+!/PI/pipeline/dryrun_1004/**
+!/PI/03_captures/**
+!/PI/04_scene_captures/**
+# 색 기준값의 이전 버전 (보고서 6.3절 근거)
+!/PI/pipeline/tools/color_refs.json.*.bak
