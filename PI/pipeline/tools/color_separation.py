@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 """color_separation.py — 아군/적군 색 분리 검증 (설계 §1-4). 다른 모든 작업보다 먼저 통과해야 하는 게이트.
 
-입력 폴더 규약 (05_manual_capture.py 출력 그대로):
-  <dir>/images/*.jpg (또는 평평하게), <dir>/labels.csv  열: filename,label(enemy|friend|both|negative),note,...
+입력 폴더 규약 (05_manual_capture.py 출력 그대로, --dir 에 여러 폴더를 줄 수 있다 — 폴더마다 labels.csv):
+  <dir>/images/*.png (또는 평평하게), <dir>/labels.csv  열: filename,label(enemy|friend|both|negative),note,...
+  색 측정은 PNG/raw 만 쓴다 (10/4 재설계 §7). JPEG 는 --allow-jpeg 를 줄 때만 받고(시운전),
+  report.md 와 color_refs.json 에 jpeg_input=true 를 남긴다.  --exclude-note test 처럼 note 로 세션을 뺄 수 있다.
   note 예: painted_center_1.5m / painted_left_2.0m / painted_both_EL-FR_1.75m (EL=enemy left, FL=friend left)  — 거리는 note의 숫자(m)에서 파싱
 박스 소스:
   --model <pt|ncnn dir>  : 검출기로 자동 (기본)          --labels <dir> : YOLO txt 라벨 사용 (사람 라벨 있을 때)
@@ -37,12 +39,25 @@ def boxes_from_labels(txt, W, H):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--dir', required=True); ap.add_argument('--out', required=True)
+    ap.add_argument('--dir', required=True, nargs='+'); ap.add_argument('--out', required=True)
+    ap.add_argument('--allow-jpeg', action='store_true', help='JPEG 입력 허용 (시운전 전용, 결과에 jpeg_input=true)')
+    ap.add_argument('--exclude-note', nargs='*', default=[], help='이 note 의 행은 뺀다 (예: test)')
     ap.add_argument('--model', default=None); ap.add_argument('--labels', default=None); ap.add_argument('--imgsz', type=int, default=1280); ap.add_argument('--device', default='cpu')
     ap.add_argument('--extra-rois', default=None); ap.add_argument('--sat-min', type=int, default=60); ap.add_argument('--top-frac', type=float, default=None); ap.add_argument('--ball-frac', type=float, default=None)
     ap.add_argument('--min-px-floor', type=int, default=20); ap.add_argument('--ratio-pass', type=float, default=3.0)
-    a = ap.parse_args(); d = Path(a.dir); out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
-    meta = pd.read_csv(next(d.rglob('labels.csv'))); imgs = {p.name: p for p in d.rglob('*.jpg')}
+    a = ap.parse_args(); out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
+    metas, imgs = [], {}
+    for d in map(Path, a.dir):
+        for lc in d.rglob('labels.csv'): metas.append(pd.read_csv(lc))
+        for p in d.rglob('*'):
+            if p.suffix.lower() in ('.png', '.jpg', '.jpeg'): imgs[p.name] = p
+    meta = pd.concat(metas, ignore_index=True)
+    if a.exclude_note: meta = meta[~meta['note'].astype(str).isin(a.exclude_note)]
+    meta = meta[meta.filename.isin(imgs)]
+    jpeg_input = bool(any(imgs[f].suffix.lower() in ('.jpg', '.jpeg') for f in meta.filename))
+    if jpeg_input and not a.allow_jpeg:
+        sys.exit('JPEG 입력입니다. 색 측정은 PNG/raw 로만 합니다 (시운전이면 --allow-jpeg).')
+    print(f'입력: {len(meta)}장 ({", ".join(map(str, a.dir))})' + (' — jpeg_input=true (시운전)' if jpeg_input else ''), file=sys.stderr)
     model = None
     if a.model and not a.labels:
         from ultralytics import YOLO; model = YOLO(a.model)
@@ -83,7 +98,7 @@ def main():
     refs = {k: rep['mean'][k].tolist() for k in ('enemy', 'friend') if k in rep['mean']}
     if len(refs) == 2:
         S['pred'] = [C.classify(dict(n_px=r.n_px, lab=None if pd.isna(r.L) else np.array([r.L, r.a, r.b])), refs, min_px=min_px, margin=rep['suggested_margin'])['side'] for _, r in S.iterrows()]
-    md = [f"# 색 분리 검증 보고 ({a.dir})", '', f"샘플: {S.cls.value_counts().to_dict()} | 픽셀 선택: sat_min={a.sat_min}, top_frac={a.top_frac}, ball_frac={a.ball_frac}", '',
+    md = [f"# 색 분리 검증 보고 ({', '.join(map(str, a.dir))})", ''] + (['**jpeg_input=true — JPEG 시운전 결과다. 색 선택·기준색으로 쓰지 않는다.**', ''] if jpeg_input else []) + [f"샘플: {S.cls.value_counts().to_dict()} | 픽셀 선택: sat_min={a.sat_min}, top_frac={a.top_frac}, ball_frac={a.ball_frac}", '',
           '## 클래스별 평균 (고채도 픽셀)', tbl(ok.groupby('cls').agg(n=('n_px', 'size'), n_px_med=('n_px', 'median'), hue=('hue', 'median'), S=('S', 'median'), V=('V', 'median'), L=('L', 'mean'), a=('a', 'mean'), b=('b', 'mean')).round(2)), '',
           '## 거리 × 위치별 (n_px 중앙값 / V 중앙값 / hue 중앙값)', tbl(ok.pivot_table(index=['cls', 'dist'], columns='pos', values=['n_px', 'V', 'hue'], aggfunc='median').round(2)), '',
           '## 분리도', f"- 클래스 간 dE2000: **{rep['between'].get('enemy|friend', float('nan')):.1f}**",
@@ -94,7 +109,7 @@ def main():
     if others: md += ['', '## 음성 색 샘플과의 거리 (dE2000)'] + [f"- {k}: enemy까지 {rep['between'].get(f'enemy|{k}', rep['between'].get(f'{k}|enemy', float('nan'))):.1f}, friend까지 {rep['between'].get(f'friend|{k}', rep['between'].get(f'{k}|friend', float('nan'))):.1f}" for k in others]
     if 'pred' in S: md += ['', '## 모의 판정 (refs=측정 평균)', tbl(pd.crosstab(S.cls, S.pred, normalize='index').round(3)), '', '### 거리별 오판정/판정불가', tbl(S.assign(wrong=((S.cls == 'enemy') & (S.pred == 'friend')) | ((S.cls == 'friend') & (S.pred == 'enemy')), unk=S.pred == 'unknown').pivot_table(index='dist', columns='cls', values=['wrong', 'unk'], aggfunc='mean').round(3))]
     open(out / 'report.md', 'w').write('\n'.join(md) + '\n')
-    json.dump(dict(refs=refs, min_px=min_px, margin=float(rep.get('suggested_margin', 5.0)), sat_min=a.sat_min, top_frac=a.top_frac, ball_frac=a.ball_frac, safety_ratio=float(rep.get('safety_ratio', 0)), source=str(a.dir)), open(out / 'color_refs.json', 'w'), indent=1)
+    json.dump(dict(refs=refs, min_px=min_px, margin=float(rep.get('suggested_margin', 5.0)), sat_min=a.sat_min, top_frac=a.top_frac, ball_frac=a.ball_frac, safety_ratio=float(rep.get('safety_ratio', 0)), source=[str(x) for x in a.dir], jpeg_input=jpeg_input), open(out / 'color_refs.json', 'w'), indent=1)
     # a*b* 산점도 (cv2)
     img = np.full((600, 600, 3), 255, np.uint8); col = {'enemy': (200, 60, 160), 'friend': (160, 160, 20), 'both?': (0, 0, 0)}
     cv2.line(img, (300, 0), (300, 600), (200, 200, 200), 1); cv2.line(img, (0, 300), (600, 300), (200, 200, 200), 1)
