@@ -1,0 +1,32 @@
+{
+ "160": {
+  "metrics/precision(B)": 0.883,
+  "metrics/recall(B)": 0.719,
+  "metrics/mAP50(B)": 0.7343,
+  "metrics/mAP50-95(B)": 0.3432
+ },
+ "224": {
+  "metrics/precision(B)": 0.998,
+  "metrics/recall(B)": 1.0,
+  "metrics/mAP50(B)": 0.995,
+  "metrics/mAP50-95(B)": 0.5973
+ },
+ "320": {
+  "metrics/precision(B)": 0.9957,
+  "metrics/recall(B)": 1.0,
+  "metrics/mAP50(B)": 0.995,
+  "metrics/mAP50-95(B)": 0.6898
+ },
+ "416": {
+  "metrics/precision(B)": 0.9959,
+  "metrics/recall(B)": 1.0,
+  "metrics/mAP50(B)": 0.995,
+  "metrics/mAP50-95(B)": 0.7317
+ },
+ "512": {
+  "metrics/precision(B)": 0.9985,
+  "metrics/recall(B)": 1.0,
+  "metrics/mAP50(B)": 0.995,
+  "metrics/mAP50-95(B)": 0.7523
+ }
+}
