@@ -1,0 +1,163 @@
+{
+  "tool": "scene_capture.py",
+  "purpose": "고정 카메라로 배경 전체의 색 분포를 수집. 배경에 거의 없는 색을 아군/적군 표지판 색으로 고르기 위함.",
+  "label": "26.09.28",
+  "label_recorded": "26.09.28",
+  "output_dir": "/home/pa8/src/scene_captures/20260928_171332_26.09.28",
+  "started_at": "2026-09-28 17:13:32",
+  "updated_at": "2026-09-28 17:13:35",
+  "status": "completed",
+  "capture_plan": {
+    "count": 1,
+    "interval_sec": 600.0,
+    "frames_per_capture": 15,
+    "composite": "연속 N프레임의 픽셀별 중앙값을 반올림한 uint8 이미지 1장 (센서 노이즈/순간 움직임 제거)"
+  },
+  "camera": {
+    "camera_model": "ov5647",
+    "main_size": [
+      640,
+      480
+    ],
+    "main_format": "RGB888",
+    "sensor_output_size": [
+      640,
+      480
+    ],
+    "sensor_bit_depth": 10,
+    "scaler_crop": [
+      16,
+      0,
+      2560,
+      1920
+    ],
+    "channel_swap": true,
+    "has_af": false
+  },
+  "lock": {
+    "locked": true,
+    "mode": "LOCKED (AWB/AE 꺼짐)",
+    "config_path": "/home/pa8/src/config/camera_config.json",
+    "config_warnings": [],
+    "ExposureTime": 29968,
+    "AnalogueGain": 2.25,
+    "ColourGains": [
+      1.1489180326461792,
+      1.9246416091918945
+    ],
+    "LensPosition": null,
+    "locked_at": "2026-09-28 17:05:35",
+    "converged": true
+  },
+  "color_conventions": {
+    "RGB": "0~255, 진짜 R,G,B 순서 (picamera2 'RGB888' 버퍼는 메모리상 BGR이라 뒤집어서 사용)",
+    "H": "0~360도",
+    "S": "0~1",
+    "V": "0~1",
+    "L": "0~100",
+    "a": "대략 -128~127",
+    "b": "대략 -128~127",
+    "reference": "sRGB, D65, OpenCV float32 변환 (8bit 스케일 아님)"
+  },
+  "thresholds": {
+    "clip_thr": 250,
+    "dark_thr": 5,
+    "hue_sat_min": 0.25,
+    "hue_val_min": 0.15,
+    "grid_step": 4,
+    "hue_empty_ratio": 0.001,
+    "clip_strong_warn_ratio": 0.02,
+    "dark_warn_ratio": 0.05
+  },
+  "files": {
+    "capture_XX.png": {
+      "description": "N프레임 픽셀별 중앙값 합성 원본. 무손실 PNG, 표준 RGB 순서(일반 뷰어에서 올바른 색)."
+    },
+    "capture_XX_clipmap.png": {
+      "description": "어둡게 한 흑백 위에 포화 픽셀(어느 채널이든 >= 250)=빨강, 암부 픽셀(모든 채널 <= 5)=파랑."
+    },
+    "pixels.csv": {
+      "description": "합성 이미지를 4px 격자로 샘플링. 각 행 = (x,y)를 좌상단으로 하는 4x4 블록의 평균 RGB와, 그 평균 RGB를 변환한 HSV/Lab. 가장자리 블록은 남은 크기만큼만 평균. 모든 캡처 누적.",
+      "columns": {
+        "capture_id": "캡처 번호 (1부터). meta.json captures[].capture_id와 대응",
+        "timestamp": "캡처 시각 YYYY-MM-DD HH:MM:SS",
+        "label": "촬영 조건 라벨 (자동 모드면 끝에 [AUTO])",
+        "x": "블록 좌상단 x (px, 0=왼쪽)",
+        "y": "블록 좌상단 y (px, 0=위쪽)",
+        "R": "블록 평균 R, 0~255 (진짜 RGB 순서), 소수 둘째 자리",
+        "G": "블록 평균 G, 0~255",
+        "B": "블록 평균 B, 0~255",
+        "H": "색상 Hue, 0~360도 (360 미만)",
+        "S": "채도, 0~1",
+        "V": "명도, 0~1",
+        "L": "CIELAB L*, 0~100 (표준 범위, OpenCV 8bit 스케일 아님)",
+        "a": "CIELAB a*, 대략 -128~127 (음수=초록, 양수=빨강/자홍)",
+        "b": "CIELAB b*, 대략 -128~127 (음수=파랑, 양수=노랑)",
+        "clipped": "블록 안에 어느 채널이든 >= 250인 픽셀이 하나라도 있으면 1 (색 신뢰 불가)",
+        "dark": "블록 안에 모든 채널 <= 5인 픽셀이 하나라도 있으면 1 (색 신뢰 불가)"
+      },
+      "notes": "H/S/V/L/a/b는 D65 sRGB 기준. 채도가 낮은 블록의 H는 의미가 거의 없으니 S와 함께 볼 것."
+    },
+    "hist_lab.csv": {
+      "description": "합성 이미지의 '모든 픽셀'로 만든 3D CIELAB 히스토그램. count 0인 구간은 생략. 모든 캡처 누적.",
+      "columns": {
+        "capture_id": "캡처 번호",
+        "label": "촬영 조건 라벨",
+        "L_bin_start": "L* 구간 시작 (0,10,...,90). 구간 폭 10. L*=100은 90~100 구간에 포함",
+        "a_bin_start": "a* 구간 시작 (-128,-120,...,120). 구간 폭 8",
+        "b_bin_start": "b* 구간 시작 (-128,-120,...,120). 구간 폭 8",
+        "count": "해당 구간 픽셀 수",
+        "ratio": "count / 해당 캡처 전체 픽셀 수"
+      }
+    },
+    "hist_hue.csv": {
+      "description": "Hue 히스토그램. S >= 0.25 그리고 V >= 0.15인 픽셀만 사용(무채색·암부 제외). 10도 단위 36구간, count 0인 구간도 포함해 캡처마다 항상 36행.",
+      "columns": {
+        "capture_id": "캡처 번호",
+        "label": "촬영 조건 라벨",
+        "hue_bin_start": "Hue 구간 시작 (0,10,...,350). 구간 폭 10도",
+        "count": "해당 구간 유채색 픽셀 수",
+        "ratio": "count / total_chromatic_pixels (유채색 픽셀이 0이면 0)",
+        "total_chromatic_pixels": "해당 캡처에서 조건을 만족한 유채색 픽셀 총수"
+      }
+    },
+    "summary.txt": {
+      "description": "사람이 읽는 요약. 캡처할 때마다 다시 씀."
+    },
+    "meta.json": {
+      "description": "이 파일. 캡처할 때마다 다시 씀. status가 completed가 아니면 중간에 끊긴 것."
+    }
+  },
+  "warnings": [],
+  "captures": [
+    {
+      "capture_id": 1,
+      "timestamp": "2026-09-28 17:13:32",
+      "image": "capture_01.png",
+      "clipmap": "capture_01_clipmap.png",
+      "clip_ratio": 0.014687,
+      "dark_ratio": 2.9e-05,
+      "chromatic_ratio": 0.225062,
+      "chromatic_pixels": 69139,
+      "total_pixels": 307200,
+      "L_mean": 56.674,
+      "L_p10": 24.719,
+      "L_p50": 63.287,
+      "L_p90": 77.936,
+      "pixels_csv_rows": 19200,
+      "frame_metadata": {
+        "ExposureTime": 29935,
+        "AnalogueGain": 2.25,
+        "DigitalGain": 1.0011005401611328,
+        "ColourGains": [
+          1.1489180326461792,
+          1.9246416091918945
+        ],
+        "LensPosition": null,
+        "Lux": 544.423828125,
+        "ColourTemperature": 3147
+      },
+      "warnings": []
+    }
+  ]
+}
