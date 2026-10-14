@@ -1,0 +1,80 @@
+{
+ "refs": {
+  "friend": [
+   61.437,
+   -30.496,
+   22.804
+  ],
+  "enemy": [
+   54.059,
+   40.247,
+   -9.588
+  ]
+ },
+ "metric": "ab",
+ "margin": 15.56,
+ "margin_basis": "0.2*sep",
+ "min_px": 97,
+ "sat_min": 60,
+ "top_frac": null,
+ "ball_frac": null,
+ "safety_ratio": 34.741,
+ "sep_ab": 77.81,
+ "drift_rms_ab": {
+  "friend": 1.984,
+  "enemy": 2.495
+ },
+ "n_images": 6,
+ "jpeg_input": false,
+ "conditions": {
+  "distances_m": [
+   1.5,
+   1.75,
+   2.0
+  ],
+  "layouts": {
+   "F-left": 3,
+   "F-right": 3
+  },
+  "ev": [
+   1.25
+  ],
+  "colour_gains": [
+   [
+    1.132,
+    1.841
+   ]
+  ],
+  "exposure_us": [
+   29989,
+   29989
+  ],
+  "analogue_gain": [
+   3.2,
+   3.3
+  ],
+  "lux": [
+   851.2,
+   874.4
+  ],
+  "colour_temp": [
+   3180,
+   3180
+  ]
+ },
+ "colors": {
+  "enemy": "B04 magenta #FF66CC",
+  "friend": "B06 green #4FD95A"
+ },
+ "source": [
+  "20261006_210725_011.png",
+  "20261006_210750_802.png",
+  "20261006_210818_054.png",
+  "20261006_210832_207.png",
+  "20261006_210847_484.png",
+  "20261006_210859_348.png"
+ ],
+ "skipped": [],
+ "created_at": "2026-10-06 21:11:49",
+ "created_by": "build_color_refs.py"
+}
