@@ -1,8 +1,10 @@
 {
  "_comment": "target_pipeline.py 설정 — 파이용(NCNN). 경로는 이 파일 위치 기준 상대 경로이고, 절대 경로나 ~/src/pipeline/weights/... 형식도 된다. NCNN 은 export 크기가 고정이라 전체 프레임용(960x1280)과 ROI 용(384x384)을 따로 지정한다. 폴더 이름의 _ncnn_model 은 바꾸면 안 된다(ultralytics 가 이름으로 형식을 판별). 비교용 r3 는 ncnn_r3_coco 를 ncnn_r3 로 바꾸면 된다.",
  "detector": {
-  "model": "../weights/ncnn_r3_coco/960x1280_ncnn_model",
-  "roi_model": "../weights/ncnn_r3_coco/384x384_ncnn_model",
+  "model": "../weights/ncnn_r4/960x1280_ncnn_model",
+  "roi_model": "../weights/ncnn_r4/384x384_ncnn_model",
+  "_model_r3_coco": "../weights/ncnn_r3_coco/960x1280_ncnn_model",
+  "_roi_model_r3_coco": "../weights/ncnn_r3_coco/384x384_ncnn_model",
   "imgsz_full": [
    960,
    1280
