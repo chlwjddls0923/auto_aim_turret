@@ -2,23 +2,86 @@
 # (수집 데이터, 모델 가중치, 교안 PDF, API 키가 들어 있는 노트북이 실수로 올라가지 않도록)
 /*
 !/.gitignore
+!/README.md
+!/PI/
+!/YOLO/
 
-!/01_test_camera.py
-!/02_check_colorspace.py
-!/03_preview.py
-!/04_scene_capture.py
-!/05_sweep_capture.py
-!/colorlab/
+# =====================================================================
+# PI — 라즈베리파이에서 실행하는 코드
+# 03_config(카메라·서보 값)는 기기마다 달라서 올리지 않는다.
+# =====================================================================
+/PI/*
+!/PI/README.md
+!/PI/.editorconfig
+!/PI/[0-9][0-9]_*.py
+!/PI/colorlab/
+!/PI/tests/
 
 # 교수님 제공 파일 중 수정한 것만
-!/Lecture/
-/Lecture/*
-!/Lecture/06_data_collect.py
+!/PI/Lecture/
+/PI/Lecture/*
+!/PI/Lecture/06_data_collect.py
 
-# 검출·색 판정 파이프라인 (DGX에서 받은 묶음 중 코드만. 가중치·휠은 제외)
-!/pipeline/
-/pipeline/*
-!/pipeline/tools/
+# 검출·색 판정 파이프라인 (DGX에서 받은 묶음 중 코드·문서만. 가중치·휠·venv·실험 결과는 제외)
+!/PI/pipeline/
+/PI/pipeline/*
+!/PI/pipeline/tools/
+!/PI/pipeline/tests/
+!/PI/pipeline/docs/
+!/PI/pipeline/PI_SETUP.md
+!/PI/pipeline/RESUME.md
 
+# =====================================================================
+# YOLO — 외부(DGX/GB10)에서 학습
+# 데이터셋·라벨·handover 묶음·로그·캐시는 올리지 않는다.
+# =====================================================================
+/YOLO/*
+!/YOLO/README_FIRST.md
+!/YOLO/RESUME.md
+!/YOLO/TRAINING_DESIGN.md
+# Roboflow API 키를 환경변수(ROBOFLOW_API_KEY)로 바꾼 사본만 올린다
+!/YOLO/Yolo_Training.ipynb
+!/YOLO/docs/
+!/YOLO/scripts/
+!/YOLO/tools/
+
+# 학습 기록 (args.yaml, results.csv, 평가 csv 등 텍스트만)
+!/YOLO/runs/
+/YOLO/runs/**/weights/
+
+# 모델 폴더는 메타데이터·체크섬·학습 설정만 (.pt/.bin/.param은 아래에서 제외)
+!/YOLO/weights/
+!/YOLO/ncnn_r3_coco/
+!/YOLO/pi_bundle_r4/
+
+# =====================================================================
+# 허용한 폴더 안에서도 제외
+# =====================================================================
+*.pt
+*.pth
+*.onnx
+*.engine
+*.torchscript
+*.tflite
+*.bin
+*.param
+*.whl
+*.zip
+*.gz
+*.zst
+*.tar
+*.jpg
+*.jpeg
+*.png
+*.bmp
+*.mp4
+*.npy
+*.npz
+*.pdf
+*.cache
+*.log
+*.lock
+*.bak
 __pycache__/
 *.pyc
+.ipynb_checkpoints/
