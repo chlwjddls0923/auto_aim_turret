@@ -1,0 +1,8 @@
+{
+ "edges_px": [
+  29.0,
+  37.2
+ ],
+ "n_targets": 2346,
+ "source": "r3_coco conf>=0.1 타겟 박스(색별 최고 conf)"
+}
